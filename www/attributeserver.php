@@ -17,6 +17,9 @@ if ($issuer === null) {
     $spEntityId = $issuer;
 } else {
     $spEntityId = $issuer->getValue();
+    if ($spEntityId === null) {
+        throw new \SimpleSAML\Error\BadRequest('Empty <saml:Issuer> in <samlp:AttributeQuery>.');
+    }
 }
 
 $idpMetadata = $metadata->getMetaDataConfig($idpEntityId, 'saml20-idp-hosted');
