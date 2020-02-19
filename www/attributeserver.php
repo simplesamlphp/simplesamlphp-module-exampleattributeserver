@@ -13,11 +13,9 @@ $idpEntityId = $metadata->getMetaDataCurrentEntityID('saml20-idp-hosted');
 $issuer = $query->getIssuer();
 if ($issuer === null) {
     throw new \SimpleSAML\Error\BadRequest('Missing <saml:Issuer> in <samlp:AttributeQuery>.');
-} elseif (is_string($issuer)) {
-    $spEntityId = $issuer;
 } else {
     $spEntityId = $issuer->getValue();
-    if ($spEntityId === null) {
+    if ($spEntityId === '') {
         throw new \SimpleSAML\Error\BadRequest('Empty <saml:Issuer> in <samlp:AttributeQuery>.');
     }
 }
@@ -46,8 +44,8 @@ if (count($returnAttributes) === 0) {
     SimpleSAML\Logger::debug('Requested attributes with wrong NameFormat - no attributes returned.');
     $returnAttributes = [];
 } else {
+    /** @var array $values */
     foreach ($returnAttributes as $name => $values) {
-        /** @var array $values */
         if (!array_key_exists($name, $attributes)) {
             // We don't have this attribute
             unset($returnAttributes[$name]);
@@ -65,8 +63,11 @@ if (count($returnAttributes) === 0) {
 }
 
 // $returnAttributes contains the attributes we should return. Send them
+$issuer = new \SAML2\XML\saml\Issuer();
+$issuer->setValue($idpEntityId);
+
 $assertion = new \SAML2\Assertion();
-$assertion->setIssuer($idpEntityId);
+$assertion->setIssuer($issuer);
 $assertion->setNameId($query->getNameId());
 $assertion->setNotBefore(time());
 $assertion->setNotOnOrAfter(time() + 300); // 60*5 = 5min
@@ -75,11 +76,13 @@ $assertion->setAttributes($returnAttributes);
 $assertion->setAttributeNameFormat($attributeNameFormat);
 
 $sc = new \SAML2\XML\saml\SubjectConfirmation();
-$sc->Method = \SAML2\Constants::CM_BEARER;
-$sc->SubjectConfirmationData = new \SAML2\XML\saml\SubjectConfirmationData();
-$sc->SubjectConfirmationData->setNotOnOrAfter(time() + 300); // 60*5 = 5min
-$sc->SubjectConfirmationData->setRecipient($endpoint);
-$sc->SubjectConfirmationData->setInResponseTo($query->getId());
+$sc->setMethod(\SAML2\Constants::CM_BEARER);
+
+$scd = new \SAML2\XML\saml\SubjectConfirmationData();
+$scd->setNotOnOrAfter(time() + 300); // 60*5 = 5min
+$scd->setRecipient($endpoint);
+$scd->setInResponseTo($query->getId());
+$sc->setSubjectConfirmationData($scd);
 $assertion->setSubjectConfirmation([$sc]);
 
 \SimpleSAML\Module\saml\Message::addSign($idpMetadata, $spMetadata, $assertion);
@@ -87,7 +90,7 @@ $assertion->setSubjectConfirmation([$sc]);
 $response = new \SAML2\Response();
 $response->setRelayState($query->getRelayState());
 $response->setDestination($endpoint);
-$response->setIssuer($idpEntityId);
+$response->setIssuer($issuer);
 $response->setInResponseTo($query->getId());
 $response->setAssertions([$assertion]);
 \SimpleSAML\Module\saml\Message::addSign($idpMetadata, $spMetadata, $response);
