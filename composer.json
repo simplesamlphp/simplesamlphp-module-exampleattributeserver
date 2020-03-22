@@ -3,7 +3,7 @@
     "description": "An example for SAML attributes queries",
     "type": "simplesamlphp-module",
     "keywords": ["simplesamlphp", "exampleattributeserver"],
-    "license": "LGPL-3.0-or-later",
+    "license": "LGPL-2.1-or-later",
     "authors": [
         {
             "name": "Olav Morken",
