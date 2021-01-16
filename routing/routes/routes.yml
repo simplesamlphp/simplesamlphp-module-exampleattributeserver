@@ -1,0 +1,6 @@
+admin-main:
+    path:       /attributeserver
+    defaults:   { _controller: 'SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer::main' }
+admin-main-legacy:
+    path:       /attributeserver.php
+    defaults:   { _controller: 'SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer::main' }
