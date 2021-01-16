@@ -155,6 +155,6 @@ class AttributeServer
         $response->setAssertions([$assertion]);
         Message::addSign($idpMetadata, $spMetadata, $response);
 
-        return new RunnableRespons([new HTTPPost(), 'send'], [$response]);
+        return new RunnableResponse([new HTTPPost(), 'send'], [$response]);
     }
 }
