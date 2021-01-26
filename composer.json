@@ -32,6 +32,7 @@
         "simplesamlphp/simplesamlphp": "dev-master"
     },
     "require-dev": {
+        "simplesamlphp/xml-security": "^0.0.10",
         "simplesamlphp/simplesamlphp-test-framework": "^1.0.5"
     },
     "support": {

@@ -7,6 +7,7 @@ namespace SimpleSAML\Test\Module\exampleattributeserver\Controller;
 use PHPUnit\Framework\TestCase;
 use SimpleSAML\Configuration;
 use SimpleSAML\HTTP\RunnableResponse;
+use SimpleSAML\Metadata\MetaDataStorageHandler;
 use SimpleSAML\Module\exampleattributeserver\Controller;
 use SimpleSAML\Session;
 use Symfony\Component\HttpFoundation\Request;
@@ -61,7 +62,49 @@ class ExampleAttributeServerTest extends TestCase
             'GET'
         );
 
+        $mdh = $this->createMock(MetaDataStorageHandler::class);
+        $mdh->method('getMetaDataCurrentEntityID')->willReturn('entityID');
+        $mdh->method('getMetaDataConfig')->willReturn(Configuration::loadFromArray([
+            'EntityID' => 'auth_source_id',
+            'testAttributeEndpoint' => 'test',
+            'privatekey' => '../../../simplesamlphp/xml-security/tests/resources/certificates/rsa-pem/selfsigned.simplesamlphp.org_nopasswd.key',
+        ]));
+/**
+        $mdh = new class () extends MetaDataStorageHandler {
+            public function __construct()
+            {
+            }
+
+            public function getMetaDataCurrentEntityID(string $set, string $type = 'entityid'): string
+            {
+                return 'localhost/simplesaml';
+            }
+
+            public function getMetaData(?string $entityId, string $set): array
+            {
+                return [
+                    'https://example.org/' => ['testAttributeEndpoint' => []]
+                ];
+            }
+
+            public function getList(string $set = 'saml20-idp-hosted', bool $showExpired = false): array
+            {
+                if ($set === 'saml20-idp-hosted') {
+                    return [
+                        0 => [
+                            'name' => 'SimpleSAMLphp Hosted IDP',
+                            'descr' => 'The local IDP',
+                            'OrganizationDisplayName' => ['en' => 'My IDP', 'nl' => 'Mijn IDP']
+                        ]
+                    ];
+                }
+                return [];
+            }
+        };
+*/
+
         $c = new Controller\AttributeServer($this->config, $this->session);
+        $c->setMetadataStorageHandler($mdh);
         $response = $c->main($request);
 
         $this->assertInstanceOf(RunnableResponse::class, $response);

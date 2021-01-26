@@ -35,6 +35,9 @@ class AttributeServer
     /** @var \SimpleSAML\Configuration */
     protected Configuration $config;
 
+    /** @var \SimpleSAML\Metadata\MetaDataStorageHandler|null */
+    protected ?MetaDataStorageHandler $metadataHandler = null;
+
     /** @var \SimpleSAML\Session */
     protected Session $session;
 
@@ -53,6 +56,17 @@ class AttributeServer
 
 
     /**
+     * Inject the \SimpleSAML\Metadata\MetaDataStorageHandler dependency.
+     *
+     * @param \SimpleSAML\Metadata\MetaDataStorageHandler $handler
+     */
+    public function setMetadataStorageHandler(MetaDataStorageHandler $handler): void
+    {
+        $this->metadataHandler = $handler;
+    }
+
+
+    /**
      * @param \Symfony\Component\HttpFoundation\Request $request The current request.
      *
      * @return \SimpleSAML\HTTP\RunnableResponse
@@ -60,15 +74,13 @@ class AttributeServer
      */
     public function main(/** @scrutinizer ignore-unused */ Request $request): RunnableResponse
     {
-        $metadata = MetaDataStorageHandler::getMetadataHandler();
-
         $binding = Binding::getCurrentBinding();
         $query = $binding->receive();
         if (!($query instanceof AttributeQuery)) {
             throw new Error\BadRequest('Invalid message received to AttributeQuery endpoint.');
         }
 
-        $idpEntityId = $metadata->getMetaDataCurrentEntityID('saml20-idp-hosted');
+        $idpEntityId = $this->metadataHandler->getMetaDataCurrentEntityID('saml20-idp-hosted');
 
         $issuer = $query->getIssuer();
         if ($issuer === null) {
@@ -80,8 +92,8 @@ class AttributeServer
             }
         }
 
-        $idpMetadata = $metadata->getMetaDataConfig($idpEntityId, 'saml20-idp-hosted');
-        $spMetadata = $metadata->getMetaDataConfig($spEntityId, 'saml20-sp-remote');
+        $idpMetadata = $this->metadataHandler->getMetaDataConfig($idpEntityId, 'saml20-idp-hosted');
+        $spMetadata = $this->metadataHandler->getMetaDataConfig($spEntityId, 'saml20-sp-remote');
 
         // The endpoint we should deliver the message to
         $endpoint = $spMetadata->getString('testAttributeEndpoint');
