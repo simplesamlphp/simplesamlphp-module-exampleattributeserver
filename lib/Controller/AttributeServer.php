@@ -33,10 +33,10 @@ use Symfony\Component\HttpFoundation\Request;
 class AttributeServer
 {
     /** @var \SimpleSAML\Configuration */
-    protected $config;
+    protected Configuration $config;
 
     /** @var \SimpleSAML\Session */
-    protected $session;
+    protected Session $session;
 
 
     /**

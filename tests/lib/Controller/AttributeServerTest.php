@@ -20,10 +20,10 @@ use Symfony\Component\HttpFoundation\Request;
 class ExampleAttributeServerTest extends TestCase
 {
     /** @var \SimpleSAML\Configuration */
-    protected $config;
+    protected Configuration $config;
 
     /** @var \SimpleSAML\Session */
-    protected $session;
+    protected Session $session;
 
 
     /**
@@ -48,19 +48,6 @@ class ExampleAttributeServerTest extends TestCase
         );
 
         $this->session = Session::getSessionFromRequest();
-/*
-        Configuration::setPreLoadedConfig(
-            Configuration::loadFromArray(
-                [
-                    'admin' => ['core:AdminPassword'],
-                ],
-                '[ARRAY]',
-                'simplesaml'
-            ),
-            'authsources.php',
-            'simplesaml'
-        );
-*/
     }
 
 
