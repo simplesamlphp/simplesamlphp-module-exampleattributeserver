@@ -5,7 +5,8 @@
     totallyTyped="false"
 >
     <projectFiles>
-        <directory name="www" />
+        <directory name="lib" />
+        <directory name="tests" />
     </projectFiles>
 
     <issueHandlers>
