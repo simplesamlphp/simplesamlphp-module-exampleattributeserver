@@ -4,8 +4,8 @@
         By default it is less stringent about long lines than other coding standards
     </description>
 
+    <file>src</file>
     <file>tests</file>
-    <file>www</file>
 
     <!-- This is the rule we inherit from. If you want to exlude some specific rules, see the docs on how to do that -->
     <rule ref="PSR12"/>
