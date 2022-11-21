@@ -17,10 +17,8 @@ use SimpleSAML\Configuration;
 use SimpleSAML\Error;
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Logger;
-use SimpleSAML\Session;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
 use SimpleSAML\Module\saml\Message;
-use SimpleSAML\XHTML\Template;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -38,20 +36,15 @@ class AttributeServer
     /** @var \SimpleSAML\Metadata\MetaDataStorageHandler|null */
     protected ?MetaDataStorageHandler $metadataHandler = null;
 
-    /** @var \SimpleSAML\Session */
-    protected Session $session;
-
 
     /**
      * ConfigController constructor.
      *
      * @param \SimpleSAML\Configuration $config The configuration to use.
-     * @param \SimpleSAML\Session $session The current user session.
      */
-    public function __construct(Configuration $config, Session $session)
+    public function __construct(Configuration $config)
     {
         $this->config = $config;
-        $this->session = $session;
     }
 
 
