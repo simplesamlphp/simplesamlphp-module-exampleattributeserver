@@ -1,6 +1,8 @@
 admin-main:
     path:       /attributeserver
     defaults:   { _controller: 'SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer::main' }
+    method:     GET|POST
 admin-main-legacy:
     path:       /attributeserver.php
     defaults:   { _controller: 'SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer::main' }
+    method:     GET|POST
