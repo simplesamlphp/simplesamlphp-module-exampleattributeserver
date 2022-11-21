@@ -32,8 +32,8 @@
     },
     "require": {
         "php": ">=7.4 || ^8.0",
-        "simplesamlphp/composer-module-installer": "~1.1.8",
-        "simplesamlphp/simplesamlphp": "^2.0.0-beta.11"
+        "simplesamlphp/composer-module-installer": "^1.2.0",
+        "simplesamlphp/simplesamlphp": "^2.0.0-rc2"
     },
     "require-dev": {
         "simplesamlphp/xml-security": "^0.4.5",
