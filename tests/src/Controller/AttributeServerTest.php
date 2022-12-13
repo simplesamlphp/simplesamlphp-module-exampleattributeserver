@@ -67,7 +67,7 @@ class ExampleAttributeServerTest extends TestCase
         $mdh->method('getMetaDataConfig')->willReturn(Configuration::loadFromArray([
             'EntityID' => 'auth_source_id',
             'testAttributeEndpoint' => 'test',
-            'privatekey' => '../../../vendor/simplesamlphp/xml-security/tests/resources/certificates/rsa-pem/selfsigned.simplesamlphp.org_nopasswd.key',
+            'privatekey' => '../../../../vendor/simplesamlphp/xml-security/tests/resources/certificates/selfsigned.simplesamlphp.org.key',
         ]));
 /**
         $mdh = new class () extends MetaDataStorageHandler {
