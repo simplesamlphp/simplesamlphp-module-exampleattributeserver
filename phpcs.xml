@@ -9,4 +9,11 @@
 
     <!-- This is the rule we inherit from. If you want to exclude some specific rules, see the docs on how to do that -->
     <rule ref="PSR12"/>
+    <rule ref="vendor/simplesamlphp/simplesamlphp-test-framework/phpcs-simplesamlphp.xml"/>
+
+    <!-- Lines can be a little bit longer before they break the build -->
+    <rule ref="Generic.Files.LineLength">
+        <!-- Exclude files with long lines that we cannot immediately fix -->
+        <exclude-pattern>tests/src/Controller/AttributeServerTest.php</exclude-pattern>
+    </rule>
 </ruleset>
