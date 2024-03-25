@@ -38,7 +38,8 @@
         "symfony/http-foundation": "^6.4"
     },
     "require-dev": {
-        "simplesamlphp/simplesamlphp-test-framework": "^1.5"
+        "simplesamlphp/simplesamlphp-test-framework": "^1.6",
+        "simplesamlphp/xml-security": "^1.7"
     },
     "support": {
         "issues": "https://github.com/simplesamlphp/simplesamlphp-module-exampleattributeserver/issues",
