@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace SimpleSAML\Test\Module\exampleattributeserver\Controller;
 
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use SimpleSAML\Configuration;
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
-use SimpleSAML\Module\exampleattributeserver\Controller;
+use SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer;
+use SimpleSAML\XMLSecurity\TestUtils\PEMCertificatesMock;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Set of tests for the controllers in the "exampleattributeserver" module.
  *
- * @covers \SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer
- * @package SimpleSAML\Test
+ * @package simplesamlphp/simplesamlphp-module-exampleattributeserver
  */
+#[CoversClass(AttributeServer::class)]
 class ExampleAttributeServerTest extends TestCase
 {
     /** @var \SimpleSAML\Configuration */
@@ -61,44 +63,11 @@ class ExampleAttributeServerTest extends TestCase
         $mdh->method('getMetaDataConfig')->willReturn(Configuration::loadFromArray([
             'EntityID' => 'auth_source_id',
             'testAttributeEndpoint' => 'test',
-            'privatekey' => dirname(__FILE__, 4) . '/vendor/simplesamlphp/xml-security/resources/keys/selfsigned.simplesamlphp.org.key',
+            'privatekey' => PEMCertificatesMock::buildKeysPath(PEMCertificatesMock::SELFSIGNED_PRIVATE_KEY),
             'privatekey_pass' => '1234',
         ]));
-/**
-        $mdh = new class () extends MetaDataStorageHandler {
-            public function __construct()
-            {
-            }
 
-            public function getMetaDataCurrentEntityID(string $set, string $type = 'entityid'): string
-            {
-                return 'localhost/simplesaml';
-            }
-
-            public function getMetaData(?string $entityId, string $set): array
-            {
-                return [
-                    'https://example.org/' => ['testAttributeEndpoint' => []]
-                ];
-            }
-
-            public function getList(string $set = 'saml20-idp-hosted', bool $showExpired = false): array
-            {
-                if ($set === 'saml20-idp-hosted') {
-                    return [
-                        0 => [
-                            'name' => 'SimpleSAMLphp Hosted IDP',
-                            'descr' => 'The local IDP',
-                            'OrganizationDisplayName' => ['en' => 'My IDP', 'nl' => 'Mijn IDP']
-                        ]
-                    ];
-                }
-                return [];
-            }
-        };
-*/
-
-        $c = new Controller\AttributeServer(self::$config);
+        $c = new AttributeServer(self::$config);
         $c->setMetadataStorageHandler($mdh);
         $response = $c->main($request);
 
