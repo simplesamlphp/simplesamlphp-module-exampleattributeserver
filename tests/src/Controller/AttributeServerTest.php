@@ -43,7 +43,7 @@ class ExampleAttributeServerTest extends TestCase
                 'module.enable' => ['exampleattributeserver' => true],
             ],
             '[ARRAY]',
-            'simplesaml'
+            'simplesaml',
         );
     }
 
@@ -55,7 +55,7 @@ class ExampleAttributeServerTest extends TestCase
         $_SERVER['REQUEST_URI'] = '/module.php/exampleattributeserver/attributeserver';
         $request = Request::create(
             '/module.php/exampleattributeserver/attributeserver',
-            'GET'
+            'GET',
         );
 
         $mdh = $this->createMock(MetaDataStorageHandler::class);
