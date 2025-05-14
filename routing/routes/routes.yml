@@ -1,9 +1,15 @@
+---
+
 admin-main:
-    path:       /attributeserver
-    defaults:   { _controller: 'SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer::main' }
-    methodz:    [GET, POST]
+  path: /attributeserver
+  defaults: {
+    _controller: 'SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer::main'
+  }
+  methods: [GET, POST]
 
 admin-main-legacy:
-    path:       /attributeserver.php
-    defaults:   { _controller: 'SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer::main' }
-    methodz:    [GET, POST]
+  path: /attributeserver.php
+  defaults: {
+    _controller: 'SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer::main'
+  }
+  methods: [GET, POST]
