@@ -4,21 +4,31 @@ declare(strict_types=1);
 
 namespace SimpleSAML\Module\exampleattributeserver\Controller;
 
-use SAML2\Assertion;
-use SAML2\AttributeQuery;
-use SAML2\Binding;
-use SAML2\Constants;
-use SAML2\HTTPPost;
-use SAML2\Response;
-use SAML2\XML\saml\Issuer;
-use SAML2\XML\saml\SubjectConfirmation;
-use SAML2\XML\saml\SubjectConfirmationData;
-use SimpleSAML\Configuration;
-use SimpleSAML\Error;
+use DateInterval;
+use SimpleSAML\{Configuration, Error, Logger};
 use SimpleSAML\HTTP\RunnableResponse;
-use SimpleSAML\Logger;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
-use SimpleSAML\Module\saml\Message;
+use SimpleSAML\SAML2\Binding;
+use SimpleSAML\SAML2\Binding\HTTPPost;
+use SimpleSAML\SAML2\Constants as C;
+use SimpleSAML\SAML2\Utils;
+use SimpleSAML\SAML2\XML\saml\{
+    Assertion,
+    Attribute,
+    AttributeStatement,
+    AttributeValue,
+    Audience,
+    AudienceRestriction,
+    Conditions,
+    Issuer,
+    Status,
+    StatusCode,
+    Subject,
+    SubjectConfirmation,
+    SubjectConfirmationData,
+};
+use SimpleSAML\SAML2\XML\samlp\{AttributeQuery, Response};
+use SimpleSAML\XML\Utils\Random;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -93,73 +103,132 @@ class AttributeServer
 
         // The attributes we will return
         $attributes = [
-            'name' => ['value1', 'value2', 'value3'],
-            'test' => ['test'],
+            new Attribute(
+                'name',
+                C::NAMEFORMAT_UNSPECIFIED,
+                null,
+                [
+                    new AttributeValue('value1'),
+                    new AttributeValue('value2'),
+                    new AttributeValue('value3'),
+                ]
+            ),
+            new Attribute(
+                'test',
+                C::NAMEFORMAT_UNSPECIFIED,
+                null,
+                [
+                    new AttributeValue('test'),
+                ],
+            ),
         ];
 
-        // The name format of the attributes
-        $attributeNameFormat = Constants::NAMEFORMAT_UNSPECIFIED;
-
         // Determine which attributes we will return
-        $returnAttributes = array_keys($query->getAttributes());
+        $returnAttributes = [];
+
         if (count($returnAttributes) === 0) {
             Logger::debug('No attributes requested - return all attributes.');
             $returnAttributes = $attributes;
-        } elseif ($query->getAttributeNameFormat() !== $attributeNameFormat) {
-            Logger::debug('Requested attributes with wrong NameFormat - no attributes returned.');
-            $returnAttributes = [];
         } else {
-            /** @var array<mixed>$values */
-            foreach ($returnAttributes as $name => $values) {
-                if (!array_key_exists($name, $attributes)) {
-                    // We don't have this attribute
-                    unset($returnAttributes[$name]);
-                    continue;
+            foreach ($query->getAttributes() as $reqAttr) {
+                foreach ($attributes as $attr) {
+                    if ($attr->getName() === $reqAttr->getName() && $attr->getNameFormat() === $reqAttr->getNameFormat()) {
+                        // The requested attribute is available
+                        if ($reqAttr->getAttributeValues() === []) {
+                            // If no specific values are requested, return all
+                            $returnAttributes[] = $attr;
+                        } else {
+                            $returnValues = $this->filterAttributeValues($reqAttr->getAttributeValues(), $attr->getAttributeValues());
+                            $returnAttributes[] = new Attribute(
+                                $attr->getName(),
+                                $attr->getNameFormat(),
+                                $returnValues,
+                                $attr->getAttributesNS(),
+                            );
+                        }
+                    }
                 }
-                if (count($values) === 0) {
-                    // Return all attributes
-                    $returnAttributes[$name] = $attributes[$name];
-                    continue;
-                }
-
-                // Filter which attribute values we should return
-                $returnAttributes[$name] = array_intersect($values, $attributes[$name]);
             }
         }
 
         // $returnAttributes contains the attributes we should return. Send them
-        $issuer = new Issuer();
-        $issuer->setValue($idpEntityId);
+        $clock = Utils::getContainer()->getClock();
 
-        $assertion = new Assertion();
-        $assertion->setIssuer($issuer);
-        $assertion->setNameId($query->getNameId());
-        $assertion->setNotBefore(time());
-        $assertion->setNotOnOrAfter(time() + 300); // 60*5 = 5min
-        $assertion->setValidAudiences([$spEntityId]);
-        $assertion->setAttributes($returnAttributes);
-        $assertion->setAttributeNameFormat($attributeNameFormat);
+        $assertion = new Assertion(
+            issuer: new Issuer($idpEntityId),
+            issueInstant: $clock->now(),
+            id: (new Random())->generateID(),
+            subject: Subject(
+                identifier: $query->getNameID(),
+                subjectConfirmation: [
+                    new SubjectConfirmation(
+                        method: C::CM_BEARER,
+                        subjectConfirmationData: new SubjectConfirmationData(
+                            notOnOrAfter: $clock->now()->add(new DateInterval('PT300S')),
+                            recipient: $endpoint,
+                            inResponseTo: $query->getId(),
+                        ),
+                    ),
+                ],
+            ),
+            conditions: new Conditions(
+                notBefore: $clock->now(),
+                notOnOrAfter: $clock->now()->add(new DateInterval('PT300S')),
+                audienceRestriction: [
+                    new AudienceRestriction([
+                        new Audience($spEntityId),
+                    ]),
+                ],
+            ),
+            statements: [
+                new AttributeStatement($returnAttributes),
+            ],
+        );
 
-        $sc = new SubjectConfirmation();
-        $sc->setMethod(Constants::CM_BEARER);
-
-        $scd = new SubjectConfirmationData();
-        $scd->setNotOnOrAfter(time() + 300); // 60*5 = 5min
-        $scd->setRecipient($endpoint);
-        $scd->setInResponseTo($query->getId());
-        $sc->setSubjectConfirmationData($scd);
-        $assertion->setSubjectConfirmation([$sc]);
-
+        // TODO:  Fix signing; should use xml-security lib
         Message::addSign($idpMetadata, $spMetadata, $assertion);
 
-        $response = new Response();
-        $response->setRelayState($query->getRelayState());
-        $response->setDestination($endpoint);
-        $response->setIssuer($issuer);
-        $response->setInResponseTo($query->getId());
-        $response->setAssertions([$assertion]);
+        $response = new Response(
+            status: new Status(
+                new StatusCode(C::STATUS_SUCCESS),
+            ),
+            issueInstant: $clock->now(),
+            issuer: new Issuer($issuer),
+            id: (new Random())->generateID(),
+            version: '2.0',
+            inResponseTo: $query->getId(),
+            destination: $endpoint,
+            assertions: [$assertion],
+        );
+
+        // TODO:  Fix signing; should use xml-security lib
         Message::addSign($idpMetadata, $spMetadata, $response);
 
-        return new RunnableResponse([new HTTPPost(), 'send'], [$response]);
+        $httpPost = new HTTPPost();
+        $httpPost->setRelayState($binding->getRelayState());
+
+        return new RunnableResponse([$httpPost, 'send'], [$response]);
+    }
+
+
+    /**
+     * @param array<\SimpleSAML\SAML2\XML\saml\AttributeValue> $reqValues
+     * @param array<\SimpleSAML\SAML2\XML\saml\AttributeValue> $values
+     *
+     * @return array<\SimpleSAML\SAML2\XML\saml\AttributeValue>
+     */
+    private function filterAttributeValues(array $reqValues, array $values): array
+    {
+        $result = [];
+
+        foreach ($reqValues as $x) {
+            foreach ($values as $y) {
+                if ($x->getValue() === $y->getValue()) {
+                    $result[] = $y;
+                }
+            }
+        }
+
+        return $result;
     }
 }
