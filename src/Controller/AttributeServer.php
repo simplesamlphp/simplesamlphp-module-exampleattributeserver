@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SimpleSAML\Module\exampleattributeserver\Controller;
 
 use DateInterval;
+use Nyholm\Psr7\Factory\Psr17Factory;
 use SimpleSAML\{Configuration, Error, Logger};
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
@@ -29,6 +30,7 @@ use SimpleSAML\SAML2\XML\saml\{
 };
 use SimpleSAML\SAML2\XML\samlp\{AttributeQuery, Response};
 use SimpleSAML\XML\Utils\Random;
+use Symfony\Bridge\PsrHttpMessage\Factory\{HttpFoundationFactory, PsrHttpFactory};
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -77,19 +79,23 @@ class AttributeServer
      */
     public function main(/** @scrutinizer ignore-unused */ Request $request): RunnableResponse
     {
-        $binding = Binding::getCurrentBinding();
-        $query = $binding->receive();
-        if (!($query instanceof AttributeQuery)) {
+        $psr17Factory = new Psr17Factory();
+        $psrHttpFactory = new PsrHttpFactory($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
+        $psrRequest = $psrHttpFactory->createRequest($request);
+
+        $binding = Binding::getCurrentBinding($psrRequest);
+        $message = $binding->receive($psrRequest);
+        if (!($message instanceof AttributeQuery)) {
             throw new Error\BadRequest('Invalid message received to AttributeQuery endpoint.');
         }
 
         $idpEntityId = $this->metadataHandler->getMetaDataCurrentEntityID('saml20-idp-hosted');
 
-        $issuer = $query->getIssuer();
+        $issuer = $message->getIssuer();
         if ($issuer === null) {
             throw new Error\BadRequest('Missing <saml:Issuer> in <samlp:AttributeQuery>.');
         } else {
-            $spEntityId = $issuer->getValue();
+            $spEntityId = $issuer->getContent();
             if ($spEntityId === '') {
                 throw new Error\BadRequest('Empty <saml:Issuer> in <samlp:AttributeQuery>.');
             }
@@ -130,7 +136,7 @@ class AttributeServer
             Logger::debug('No attributes requested - return all attributes.');
             $returnAttributes = $attributes;
         } else {
-            foreach ($query->getAttributes() as $reqAttr) {
+            foreach ($message->getAttributes() as $reqAttr) {
                 foreach ($attributes as $attr) {
                     if ($attr->getName() === $reqAttr->getName() && $attr->getNameFormat() === $reqAttr->getNameFormat()) {
                         // The requested attribute is available
@@ -158,15 +164,15 @@ class AttributeServer
             issuer: new Issuer($idpEntityId),
             issueInstant: $clock->now(),
             id: (new Random())->generateID(),
-            subject: Subject(
-                identifier: $query->getNameID(),
+            subject: new Subject(
+                identifier: $message->getSubject()->getIdentifier(),
                 subjectConfirmation: [
                     new SubjectConfirmation(
                         method: C::CM_BEARER,
                         subjectConfirmationData: new SubjectConfirmationData(
                             notOnOrAfter: $clock->now()->add(new DateInterval('PT300S')),
                             recipient: $endpoint,
-                            inResponseTo: $query->getId(),
+                            inResponseTo: $message->getId(),
                         ),
                     ),
                 ],
@@ -196,7 +202,7 @@ class AttributeServer
             issuer: new Issuer($issuer),
             id: (new Random())->generateID(),
             version: '2.0',
-            inResponseTo: $query->getId(),
+            inResponseTo: $message->getId(),
             destination: $endpoint,
             assertions: [$assertion],
         );
