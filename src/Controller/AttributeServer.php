@@ -109,7 +109,7 @@ class AttributeServer
             Logger::debug('Requested attributes with wrong NameFormat - no attributes returned.');
             $returnAttributes = [];
         } else {
-            /** @var array $values */
+            /** @var array<mixed>$values */
             foreach ($returnAttributes as $name => $values) {
                 if (!array_key_exists($name, $attributes)) {
                     // We don't have this attribute
