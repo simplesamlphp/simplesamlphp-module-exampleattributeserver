@@ -9,6 +9,7 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 use SimpleSAML\{Configuration, Error, Logger};
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
+use SimpleSAML\Module\saml\Message;;
 use SimpleSAML\SAML2\Binding;
 use SimpleSAML\SAML2\Binding\HTTPPost;
 use SimpleSAML\SAML2\Constants as C;
