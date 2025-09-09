@@ -34,7 +34,7 @@ class ExampleAttributeServerTest extends TestCase
 
         $_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
         $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_GET = ['SAMLRequest' => 'rZNRa8IwFIXfB%2FsPIe9Nm7SaNWhBEEFwg%2BHYw95ie%2Bsy2rQkKei%2FX9o6kQ1EhoQQOLnn3I8bMrOyrlqxcM6oXefgtQNzRIe60lYMV3PcGS0aaZUVWtZghcvFdvG8EYxEojWNa%2FKmwheW6w5pLRinGo3RejnHUpYspuk0oJzHAaM0DhKeyKAESpOEMrnjDKN3MNZb5tgneJ%2B1Hay1dVI7L0WUB1EaRNM3SkWSCsY%2FcPb4gNCspxFDtUGrxtTSXWfrFVUE5VAqQDvljjj7dK61IgzhIOu2AtKYfTgLL7Ivmm273RfkblB%2BtBeful7%2BA6DTtoVclQoKnPW2E4GwY5cTxJg%2FQoR%2FKEaG8%2FuivvoEoQpBSUymhJLE70nKYn%2F0i%2BOh7hZk6ZN79QxtFEYro0AX1XFsNgyygtqfFoc3UDEy8UTJXSGsvrE1nZKnJOrHQGMeR6SfSZzelaU1UIIxUGyk3ndyDwPa%2BHi%2F%2F2L2DQ%3D%3D'];
+        $_GET = ['SAMLRequest' => 'rZNRa8IwFIXfB/sPIe9Nm7SaNWhBEEFwg+HYw95ie+sy2rQkKei/X9o6kQ1EhoQQOLnn3I8bMrOyrlqxcM6oXefgtQNzRIe60lYMV3PcGS0aaZUVWtZghcvFdvG8EYxEojWNa/KmwheW6w5pLRinGo3RejnHUpYspuk0oJzHAaM0DhKeyKAESpOEMrnjDKN3MNZb5tgneJ+1Hay1dVI7L0WUB1EaRNM3SkWSCsY/cPb4gNCspxFDtUGrxtTSXWfrFVUE5VAqQDvljjj7dK61IgzhIOu2AtKYfTgLL7Ivmm273RfkblB+tBeful7+A6DTtoVclQoKnPW2E4GwY5cTxJg/QoR/KEaG8/uivvoEoQpBSUymhJLE70nKYn/0i+Oh7hZk6ZN79QxtFEYro0AX1XFsNgyygtqfFoc3UDEy8UTJXSGsvrE1nZKnJOrHQGMeR6SfSZzelaU1UIIxUGyk3ndyDwPa+Hi//2L2DQ=='];
         $_GET['RelayState'] = 'something';
         $_SERVER['QUERY_STRING'] = 'SAMLRequest=rZNRa8IwFIXfB%2FsPIe9Nm7SaNWhBEEFwg%2BHYw95ie%2Bsy2rQkKei%2FX9o6kQ1EhoQQOLnn3I8bMrOyrlqxcM6oXefgtQNzRIe60lYMV3PcGS0aaZUVWtZghcvFdvG8EYxEojWNa%2FKmwheW6w5pLRinGo3RejnHUpYspuk0oJzHAaM0DhKeyKAESpOEMrnjDKN3MNZb5tgneJ%2B1Hay1dVI7L0WUB1EaRNM3SkWSCsY%2FcPb4gNCspxFDtUGrxtTSXWfrFVUE5VAqQDvljjj7dK61IgzhIOu2AtKYfTgLL7Ivmm273RfkblB%2BtBeful7%2BA6DTtoVclQoKnPW2E4GwY5cTxJg%2FQoR%2FKEaG8%2FuivvoEoQpBSUymhJLE70nKYn%2F0i%2BOh7hZk6ZN79QxtFEYro0AX1XFsNgyygtqfFoc3UDEy8UTJXSGsvrE1nZKnJOrHQGMeR6SfSZzelaU1UIIxUGyk3ndyDwPa%2BHi%2F%2F2L2DQ%3D%3D&RelayState=something';
 
@@ -53,16 +53,14 @@ class ExampleAttributeServerTest extends TestCase
     public function testMain(): void
     {
         $_SERVER['REQUEST_URI'] = '/module.php/exampleattributeserver/attributeserver';
-        $request = Request::create(
-            '/module.php/exampleattributeserver/attributeserver',
-            'GET',
-        );
+        $_SERVER['HTTP_HOST'] = 'example.org';
+        $request = Request::createFromGlobals();
 
         $mdh = $this->createMock(MetaDataStorageHandler::class);
-        $mdh->method('getMetaDataCurrentEntityID')->willReturn('entityID');
+        $mdh->method('getMetaDataCurrentEntityID')->willReturn('https://example.org/');
         $mdh->method('getMetaDataConfig')->willReturn(Configuration::loadFromArray([
             'EntityID' => 'auth_source_id',
-            'testAttributeEndpoint' => 'test',
+            'testAttributeEndpoint' => 'https://example.org/testAttributeEndpoint',
             'privatekey' => PEMCertificatesMock::buildKeysPath(PEMCertificatesMock::SELFSIGNED_PRIVATE_KEY),
             'privatekey_pass' => '1234',
         ]));

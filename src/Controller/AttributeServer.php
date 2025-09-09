@@ -4,22 +4,39 @@ declare(strict_types=1);
 
 namespace SimpleSAML\Module\exampleattributeserver\Controller;
 
-use SAML2\Assertion;
-use SAML2\AttributeQuery;
-use SAML2\Binding;
-use SAML2\Constants;
-use SAML2\HTTPPost;
-use SAML2\Response;
-use SAML2\XML\saml\Issuer;
-use SAML2\XML\saml\SubjectConfirmation;
-use SAML2\XML\saml\SubjectConfirmationData;
-use SimpleSAML\Configuration;
-use SimpleSAML\Error;
+use DateInterval;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use SimpleSAML\{Configuration, Error, Logger};
 use SimpleSAML\HTTP\RunnableResponse;
-use SimpleSAML\Logger;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
-use SimpleSAML\Module\saml\Message;
+use SimpleSAML\SAML2\Binding;
+use SimpleSAML\SAML2\Binding\HTTPPost;
+use SimpleSAML\SAML2\Constants as C;
+use SimpleSAML\SAML2\Utils as SAML2_Utils;
+use SimpleSAML\SAML2\XML\saml\{
+    Assertion,
+    Attribute,
+    AttributeStatement,
+    AttributeValue,
+    Audience,
+    AudienceRestriction,
+    Conditions,
+    Issuer,
+    Subject,
+    SubjectConfirmation,
+    SubjectConfirmationData,
+};
+use SimpleSAML\SAML2\XML\samlp\{AttributeQuery, Response, Status, StatusCode};
+use SimpleSAML\Utils;
+use SimpleSAML\XML\Utils\Random;
+use SimpleSAML\XMLSecurity\Alg\Signature\SignatureAlgorithmFactory;
+use SimpleSAML\XMLSecurity\Key\PrivateKey;
+use SimpleSAML\XMLSecurity\XML\ds\{KeyInfo, X509Certificate, X509Data};
+use SimpleSAML\XMLSecurity\XML\SignableElementInterface;
+use Symfony\Bridge\PsrHttpMessage\Factory\{HttpFoundationFactory, PsrHttpFactory};
 use Symfony\Component\HttpFoundation\Request;
+
+use function array_filter;
 
 /**
  * Controller class for the exampleattributeserver module.
@@ -67,19 +84,23 @@ class AttributeServer
      */
     public function main(/** @scrutinizer ignore-unused */ Request $request): RunnableResponse
     {
-        $binding = Binding::getCurrentBinding();
-        $query = $binding->receive();
-        if (!($query instanceof AttributeQuery)) {
+        $psr17Factory = new Psr17Factory();
+        $psrHttpFactory = new PsrHttpFactory($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
+        $psrRequest = $psrHttpFactory->createRequest($request);
+
+        $binding = Binding::getCurrentBinding($psrRequest);
+        $message = $binding->receive($psrRequest);
+        if (!($message instanceof AttributeQuery)) {
             throw new Error\BadRequest('Invalid message received to AttributeQuery endpoint.');
         }
 
         $idpEntityId = $this->metadataHandler->getMetaDataCurrentEntityID('saml20-idp-hosted');
 
-        $issuer = $query->getIssuer();
+        $issuer = $message->getIssuer();
         if ($issuer === null) {
             throw new Error\BadRequest('Missing <saml:Issuer> in <samlp:AttributeQuery>.');
         } else {
-            $spEntityId = $issuer->getValue();
+            $spEntityId = $issuer->getContent();
             if ($spEntityId === '') {
                 throw new Error\BadRequest('Empty <saml:Issuer> in <samlp:AttributeQuery>.');
             }
@@ -93,73 +114,195 @@ class AttributeServer
 
         // The attributes we will return
         $attributes = [
-            'name' => ['value1', 'value2', 'value3'],
-            'test' => ['test'],
+            new Attribute(
+                'name',
+                C::NAMEFORMAT_UNSPECIFIED,
+                null,
+                [
+                    new AttributeValue('value1'),
+                    new AttributeValue('value2'),
+                    new AttributeValue('value3'),
+                ],
+            ),
+            new Attribute(
+                'test',
+                C::NAMEFORMAT_UNSPECIFIED,
+                null,
+                [
+                    new AttributeValue('test'),
+                ],
+            ),
         ];
 
-        // The name format of the attributes
-        $attributeNameFormat = Constants::NAMEFORMAT_UNSPECIFIED;
-
         // Determine which attributes we will return
-        $returnAttributes = array_keys($query->getAttributes());
-        if (count($returnAttributes) === 0) {
+        // @phpstan-ignore identical.alwaysFalse
+        if (count($attributes) === 0) {
             Logger::debug('No attributes requested - return all attributes.');
-            $returnAttributes = $attributes;
-        } elseif ($query->getAttributeNameFormat() !== $attributeNameFormat) {
-            Logger::debug('Requested attributes with wrong NameFormat - no attributes returned.');
-            $returnAttributes = [];
+            $attributeStatement = null;
         } else {
-            /** @var array<mixed>$values */
-            foreach ($returnAttributes as $name => $values) {
-                if (!array_key_exists($name, $attributes)) {
-                    // We don't have this attribute
-                    unset($returnAttributes[$name]);
-                    continue;
-                }
-                if (count($values) === 0) {
-                    // Return all attributes
-                    $returnAttributes[$name] = $attributes[$name];
-                    continue;
-                }
+            $returnAttributes = [];
+            foreach ($message->getAttributes() as $reqAttr) {
+                foreach ($attributes as $attr) {
+                    if (
+                        $attr->getName() === $reqAttr->getName()
+                        && $attr->getNameFormat() === $reqAttr->getNameFormat()
+                    ) {
+                        // The requested attribute is available
+                        if ($reqAttr->getAttributeValues() === []) {
+                            // If no specific values are requested, return all
+                            $returnAttributes[] = $attr;
+                        } else {
+                            $returnValues = $this->filterAttributeValues(
+                                $reqAttr->getAttributeValues(),
+                                $attr->getAttributeValues(),
+                            );
 
-                // Filter which attribute values we should return
-                $returnAttributes[$name] = array_intersect($values, $attributes[$name]);
+                            $returnAttributes[] = new Attribute(
+                                $attr->getName(),
+                                $attr->getNameFormat(),
+                                null,
+                                $returnValues,
+                                $attr->getAttributesNS(),
+                            );
+                        }
+                    }
+                }
             }
+
+            $attributeStatement = $returnAttributes ? (new AttributeStatement($returnAttributes)) : null;
         }
 
         // $returnAttributes contains the attributes we should return. Send them
-        $issuer = new Issuer();
-        $issuer->setValue($idpEntityId);
+        $clock = SAML2_Utils::getContainer()->getClock();
 
-        $assertion = new Assertion();
-        $assertion->setIssuer($issuer);
-        $assertion->setNameId($query->getNameId());
-        $assertion->setNotBefore(time());
-        $assertion->setNotOnOrAfter(time() + 300); // 60*5 = 5min
-        $assertion->setValidAudiences([$spEntityId]);
-        $assertion->setAttributes($returnAttributes);
-        $assertion->setAttributeNameFormat($attributeNameFormat);
+        $statements = array_filter([$attributeStatement]);
+        $assertion = new Assertion(
+            issuer: new Issuer($idpEntityId),
+            issueInstant: $clock->now(),
+            id: (new Random())->generateID(),
+            subject: new Subject(
+                identifier: $message->getSubject()->getIdentifier(),
+                subjectConfirmation: [
+                    new SubjectConfirmation(
+                        method: C::CM_BEARER,
+                        subjectConfirmationData: new SubjectConfirmationData(
+                            notOnOrAfter: $clock->now()->add(new DateInterval('PT300S')),
+                            recipient: $endpoint,
+                            inResponseTo: $message->getId(),
+                        ),
+                    ),
+                ],
+            ),
+            conditions: new Conditions(
+                notBefore: $clock->now(),
+                notOnOrAfter: $clock->now()->add(new DateInterval('PT300S')),
+                audienceRestriction: [
+                    new AudienceRestriction([
+                        new Audience($spEntityId),
+                    ]),
+                ],
+            ),
+            statements: $statements,
+        );
 
-        $sc = new SubjectConfirmation();
-        $sc->setMethod(Constants::CM_BEARER);
+        self::addSign($idpMetadata, $spMetadata, $assertion);
 
-        $scd = new SubjectConfirmationData();
-        $scd->setNotOnOrAfter(time() + 300); // 60*5 = 5min
-        $scd->setRecipient($endpoint);
-        $scd->setInResponseTo($query->getId());
-        $sc->setSubjectConfirmationData($scd);
-        $assertion->setSubjectConfirmation([$sc]);
+        $response = new Response(
+            status: new Status(
+                new StatusCode(C::STATUS_SUCCESS),
+            ),
+            issueInstant: $clock->now(),
+            issuer: $issuer,
+            id: (new Random())->generateID(),
+            version: '2.0',
+            inResponseTo: $message->getId(),
+            destination: $endpoint,
+            assertions: [$assertion],
+        );
 
-        Message::addSign($idpMetadata, $spMetadata, $assertion);
+        self::addSign($idpMetadata, $spMetadata, $response);
 
-        $response = new Response();
-        $response->setRelayState($query->getRelayState());
-        $response->setDestination($endpoint);
-        $response->setIssuer($issuer);
-        $response->setInResponseTo($query->getId());
-        $response->setAssertions([$assertion]);
-        Message::addSign($idpMetadata, $spMetadata, $response);
+        /** @var \SimpleSAML\SAML2\Binding\HTTPPost $httpPost */
+        $httpPost = new HTTPPost();
+        $httpPost->setRelayState($binding->getRelayState());
 
-        return new RunnableResponse([new HTTPPost(), 'send'], [$response]);
+        return new RunnableResponse([$httpPost, 'send'], [$response]);
+    }
+
+
+    /**
+     * @param array<\SimpleSAML\SAML2\XML\saml\AttributeValue> $reqValues
+     * @param array<\SimpleSAML\SAML2\XML\saml\AttributeValue> $values
+     *
+     * @return array<\SimpleSAML\SAML2\XML\saml\AttributeValue>
+     */
+    private function filterAttributeValues(array $reqValues, array $values): array
+    {
+        $result = [];
+
+        foreach ($reqValues as $x) {
+            foreach ($values as $y) {
+                if ($x->getValue() === $y->getValue()) {
+                    $result[] = $y;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+
+    /**
+     * @deprecated This method is a modified version of \SimpleSAML\Module\saml\Message::addSign and
+     *  should be replaced with a call to a future ServiceProvider-class in the saml2-library
+     *
+     * Add signature key and sender certificate to an element (Message or Assertion).
+     *
+     * @param \SimpleSAML\Configuration $srcMetadata The metadata of the sender.
+     * @param \SimpleSAML\Configuration $dstMetadata The metadata of the recipient.
+     * @param \SimpleSAML\XMLSecurity\XML\SignableElementInterface $element The element we should add the data to.
+     */
+    private static function addSign(
+        Configuration $srcMetadata,
+        Configuration $dstMetadata,
+        SignableElementInterface &$element,
+    ): void {
+        $dstPrivateKey = $dstMetadata->getOptionalString('signature.privatekey', null);
+        $cryptoUtils = new Utils\Crypto();
+
+        if ($dstPrivateKey !== null) {
+            /** @var string[] $keyArray */
+            $keyArray = $cryptoUtils->loadPrivateKey($dstMetadata, true, 'signature.');
+            $certArray = $cryptoUtils->loadPublicKey($dstMetadata, false, 'signature.');
+        } else {
+            /** @var string[] $keyArray */
+            $keyArray = $cryptoUtils->loadPrivateKey($srcMetadata, true);
+            $certArray = $cryptoUtils->loadPublicKey($srcMetadata, false);
+        }
+
+        $algo = $dstMetadata->getOptionalString('signature.algorithm', null);
+        if ($algo === null) {
+            $algo = $srcMetadata->getOptionalString('signature.algorithm', C::SIG_RSA_SHA256);
+        }
+
+        $privateKey = PrivateKey::fromFile($keyArray['PEM'], $keyArray['password']);
+
+        $keyInfo = null;
+        if ($certArray !== null) {
+            $keyInfo = new KeyInfo([
+                new X509Data(
+                    [
+                        new X509Certificate($certArray['PEM']),
+                    ],
+                ),
+            ]);
+        }
+
+        $signer = (new SignatureAlgorithmFactory())->getAlgorithm(
+            $algo,
+            $privateKey,
+        );
+
+        $element->sign($signer, C::C14N_EXCLUSIVE_WITHOUT_COMMENTS, $keyInfo);
     }
 }
