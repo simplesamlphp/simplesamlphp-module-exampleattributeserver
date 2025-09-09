@@ -9,11 +9,10 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 use SimpleSAML\{Configuration, Error, Logger};
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
-use SimpleSAML\Module\saml\Message;;
 use SimpleSAML\SAML2\Binding;
 use SimpleSAML\SAML2\Binding\HTTPPost;
 use SimpleSAML\SAML2\Constants as C;
-use SimpleSAML\SAML2\Utils;
+use SimpleSAML\SAML2\Utils as SAML2_Utils;
 use SimpleSAML\SAML2\XML\saml\{
     Assertion,
     Attribute,
@@ -23,16 +22,21 @@ use SimpleSAML\SAML2\XML\saml\{
     AudienceRestriction,
     Conditions,
     Issuer,
-    Status,
-    StatusCode,
     Subject,
     SubjectConfirmation,
     SubjectConfirmationData,
 };
-use SimpleSAML\SAML2\XML\samlp\{AttributeQuery, Response};
+use SimpleSAML\SAML2\XML\samlp\{AttributeQuery, Response, Status, StatusCode};
+use SimpleSAML\Utils;
 use SimpleSAML\XML\Utils\Random;
+use SimpleSAML\XMLSecurity\Alg\Signature\SignatureAlgorithmFactory;
+use SimpleSAML\XMLSecurity\Key\PrivateKey;
+use SimpleSAML\XMLSecurity\XML\ds\{KeyInfo, X509Certificate, X509Data};
+use SimpleSAML\XMLSecurity\XML\SignableElementInterface;
 use Symfony\Bridge\PsrHttpMessage\Factory\{HttpFoundationFactory, PsrHttpFactory};
 use Symfony\Component\HttpFoundation\Request;
+
+use function array_filter;
 
 /**
  * Controller class for the exampleattributeserver module.
@@ -118,7 +122,7 @@ class AttributeServer
                     new AttributeValue('value1'),
                     new AttributeValue('value2'),
                     new AttributeValue('value3'),
-                ]
+                ],
             ),
             new Attribute(
                 'test',
@@ -131,24 +135,32 @@ class AttributeServer
         ];
 
         // Determine which attributes we will return
-        $returnAttributes = [];
-
-        if (count($returnAttributes) === 0) {
+        // @phpstan-ignore identical.alwaysFalse
+        if (count($attributes) === 0) {
             Logger::debug('No attributes requested - return all attributes.');
-            $returnAttributes = $attributes;
+            $attributeStatement = null;
         } else {
+            $returnAttributes = [];
             foreach ($message->getAttributes() as $reqAttr) {
                 foreach ($attributes as $attr) {
-                    if ($attr->getName() === $reqAttr->getName() && $attr->getNameFormat() === $reqAttr->getNameFormat()) {
+                    if (
+                        $attr->getName() === $reqAttr->getName()
+                        && $attr->getNameFormat() === $reqAttr->getNameFormat()
+                    ) {
                         // The requested attribute is available
                         if ($reqAttr->getAttributeValues() === []) {
                             // If no specific values are requested, return all
                             $returnAttributes[] = $attr;
                         } else {
-                            $returnValues = $this->filterAttributeValues($reqAttr->getAttributeValues(), $attr->getAttributeValues());
+                            $returnValues = $this->filterAttributeValues(
+                                $reqAttr->getAttributeValues(),
+                                $attr->getAttributeValues(),
+                            );
+
                             $returnAttributes[] = new Attribute(
                                 $attr->getName(),
                                 $attr->getNameFormat(),
+                                null,
                                 $returnValues,
                                 $attr->getAttributesNS(),
                             );
@@ -156,11 +168,14 @@ class AttributeServer
                     }
                 }
             }
+
+            $attributeStatement = $returnAttributes ? (new AttributeStatement($returnAttributes)) : null;
         }
 
         // $returnAttributes contains the attributes we should return. Send them
-        $clock = Utils::getContainer()->getClock();
+        $clock = SAML2_Utils::getContainer()->getClock();
 
+        $statements = array_filter([$attributeStatement]);
         $assertion = new Assertion(
             issuer: new Issuer($idpEntityId),
             issueInstant: $clock->now(),
@@ -187,20 +202,17 @@ class AttributeServer
                     ]),
                 ],
             ),
-            statements: [
-                new AttributeStatement($returnAttributes),
-            ],
+            statements: $statements,
         );
 
-        // TODO:  Fix signing; should use xml-security lib
-        Message::addSign($idpMetadata, $spMetadata, $assertion);
+        self::addSign($idpMetadata, $spMetadata, $assertion);
 
         $response = new Response(
             status: new Status(
                 new StatusCode(C::STATUS_SUCCESS),
             ),
             issueInstant: $clock->now(),
-            issuer: new Issuer($issuer),
+            issuer: $issuer,
             id: (new Random())->generateID(),
             version: '2.0',
             inResponseTo: $message->getId(),
@@ -208,9 +220,9 @@ class AttributeServer
             assertions: [$assertion],
         );
 
-        // TODO:  Fix signing; should use xml-security lib
-        Message::addSign($idpMetadata, $spMetadata, $response);
+        self::addSign($idpMetadata, $spMetadata, $response);
 
+        /** @var \SimpleSAML\SAML2\Binding\HTTPPost $httpPost */
         $httpPost = new HTTPPost();
         $httpPost->setRelayState($binding->getRelayState());
 
@@ -237,5 +249,60 @@ class AttributeServer
         }
 
         return $result;
+    }
+
+
+    /**
+     * @deprecated This method is a modified version of \SimpleSAML\Module\saml\Message::addSign and
+     *  should be replaced with a call to a future ServiceProvider-class in the saml2-library
+     *
+     * Add signature key and sender certificate to an element (Message or Assertion).
+     *
+     * @param \SimpleSAML\Configuration $srcMetadata The metadata of the sender.
+     * @param \SimpleSAML\Configuration $dstMetadata The metadata of the recipient.
+     * @param \SimpleSAML\XMLSecurity\XML\SignableElementInterface $element The element we should add the data to.
+     */
+    private static function addSign(
+        Configuration $srcMetadata,
+        Configuration $dstMetadata,
+        SignableElementInterface &$element,
+    ): void {
+        $dstPrivateKey = $dstMetadata->getOptionalString('signature.privatekey', null);
+        $cryptoUtils = new Utils\Crypto();
+
+        if ($dstPrivateKey !== null) {
+            /** @var string[] $keyArray */
+            $keyArray = $cryptoUtils->loadPrivateKey($dstMetadata, true, 'signature.');
+            $certArray = $cryptoUtils->loadPublicKey($dstMetadata, false, 'signature.');
+        } else {
+            /** @var string[] $keyArray */
+            $keyArray = $cryptoUtils->loadPrivateKey($srcMetadata, true);
+            $certArray = $cryptoUtils->loadPublicKey($srcMetadata, false);
+        }
+
+        $algo = $dstMetadata->getOptionalString('signature.algorithm', null);
+        if ($algo === null) {
+            $algo = $srcMetadata->getOptionalString('signature.algorithm', C::SIG_RSA_SHA256);
+        }
+
+        $privateKey = PrivateKey::fromFile($keyArray['PEM'], $keyArray['password']);
+
+        $keyInfo = null;
+        if ($certArray !== null) {
+            $keyInfo = new KeyInfo([
+                new X509Data(
+                    [
+                        new X509Certificate($certArray['PEM']),
+                    ],
+                ),
+            ]);
+        }
+
+        $signer = (new SignatureAlgorithmFactory())->getAlgorithm(
+            $algo,
+            $privateKey,
+        );
+
+        $element->sign($signer, C::C14N_EXCLUSIVE_WITHOUT_COMMENTS, $keyInfo);
     }
 }

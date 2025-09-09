@@ -60,7 +60,7 @@ class ExampleAttributeServerTest extends TestCase
         $mdh->method('getMetaDataCurrentEntityID')->willReturn('https://example.org/');
         $mdh->method('getMetaDataConfig')->willReturn(Configuration::loadFromArray([
             'EntityID' => 'auth_source_id',
-            'testAttributeEndpoint' => 'test',
+            'testAttributeEndpoint' => 'https://example.org/testAttributeEndpoint',
             'privatekey' => PEMCertificatesMock::buildKeysPath(PEMCertificatesMock::SELFSIGNED_PRIVATE_KEY),
             'privatekey_pass' => '1234',
         ]));
