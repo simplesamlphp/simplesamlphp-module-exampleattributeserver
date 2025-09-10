@@ -10,7 +10,7 @@ use SimpleSAML\{Configuration, Error, Logger};
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
 use SimpleSAML\SAML2\Binding;
-use SimpleSAML\SAML2\Binding\{SynchronousBindingException, HTTPPost};
+use SimpleSAML\SAML2\Binding\{SynchronousBindingException, SOAP};
 use SimpleSAML\SAML2\Constants as C;
 use SimpleSAML\SAML2\Utils as SAML2_Utils;
 use SimpleSAML\SAML2\XML\saml\{
@@ -226,10 +226,8 @@ class AttributeServer
 
         self::addSign($idpMetadata, $spMetadata, $response);
 
-        $httpPost = new HTTPPost();
-        $httpPost->setRelayState($binding->getRelayState());
-
-        return new RunnableResponse([$httpPost, 'send'], [$response]);
+        $soap = new SOAP();
+        return new RunnableResponse([$soap, 'send'], [$response]);
     }
 
 
