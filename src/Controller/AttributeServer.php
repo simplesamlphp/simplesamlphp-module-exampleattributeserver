@@ -10,7 +10,7 @@ use SimpleSAML\{Configuration, Error, Logger};
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
 use SimpleSAML\SAML2\Binding;
-use SimpleSAML\SAML2\Binding\HTTPPost;
+use SimpleSAML\SAML2\Binding\{SynchronousBindingException, HTTPPost};
 use SimpleSAML\SAML2\Constants as C;
 use SimpleSAML\SAML2\Utils as SAML2_Utils;
 use SimpleSAML\SAML2\XML\saml\{
@@ -89,6 +89,10 @@ class AttributeServer
         $psrRequest = $psrHttpFactory->createRequest($request);
 
         $binding = Binding::getCurrentBinding($psrRequest);
+        if (!($binding instanceof SynchronousBindingInterface)) {
+            throw new Error\BadRequest('Invalid binding; MUST use a synchronous binding.');
+        }
+
         $message = $binding->receive($psrRequest);
         if (!($message instanceof AttributeQuery)) {
             throw new Error\BadRequest('Invalid message received to AttributeQuery endpoint.');
@@ -222,7 +226,6 @@ class AttributeServer
 
         self::addSign($idpMetadata, $spMetadata, $response);
 
-        /** @var \SimpleSAML\SAML2\Binding\HTTPPost $httpPost */
         $httpPost = new HTTPPost();
         $httpPost->setRelayState($binding->getRelayState());
 
