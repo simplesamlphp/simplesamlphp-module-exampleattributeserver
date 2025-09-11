@@ -10,7 +10,7 @@ use SimpleSAML\{Configuration, Error, Logger};
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
 use SimpleSAML\SAML2\Binding;
-use SimpleSAML\SAML2\Binding\{SynchronousBindingException, SOAP};
+use SimpleSAML\SAML2\Binding\{SynchronousBindingInterface, SOAP};
 use SimpleSAML\SAML2\Constants as C;
 use SimpleSAML\SAML2\Utils as SAML2_Utils;
 use SimpleSAML\SAML2\XML\saml\{
