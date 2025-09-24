@@ -75,7 +75,7 @@ class AttributeServer
 
 
     /**
-     * @param \Symfony\Component\HttpFoundation\Request $request The current request.
+     * @param \Nyholm\Psr7\ServerRequest $request The current request.
      *
      * @return \SimpleSAML\HTTP\RunnableResponse
      * @throws \SimpleSAML\Error\BadRequest
