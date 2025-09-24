@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace SimpleSAML\Test\Module\exampleattributeserver\Controller;
 
+use Mockery\Adapter\Phpunit\MockeryTestCase;
+
+use Nyholm\Psr7\ServerRequest;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use SimpleSAML\SAML2\Binding\SOAP;
 use SimpleSAML\Configuration;
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
 use SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer;
 use SimpleSAML\XMLSecurity\TestUtils\PEMCertificatesMock;
 use Symfony\Component\HttpFoundation\Request;
+use SAML2\Message;
 
 /**
  * Set of tests for the controllers in the "exampleattributeserver" module.
@@ -19,7 +24,7 @@ use Symfony\Component\HttpFoundation\Request;
  * @package simplesamlphp/simplesamlphp-module-exampleattributeserver
  */
 #[CoversClass(AttributeServer::class)]
-class ExampleAttributeServerTest extends TestCase
+class ExampleAttributeServerTest extends MockeryTestCase
 {
     /** @var \SimpleSAML\Configuration */
     protected static Configuration $config;
@@ -52,9 +57,22 @@ class ExampleAttributeServerTest extends TestCase
      */
     public function testMain(): void
     {
-        $_SERVER['REQUEST_URI'] = '/module.php/exampleattributeserver/attributeserver';
-        $_SERVER['HTTP_HOST'] = 'example.org';
-        $request = Request::createFromGlobals();
+        $soap = $this->getStubWithInput(<<<SOAP
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+  <SOAP-ENV:Body>
+          <samlp:AttributeQuery xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="aaf23196-1773-2113-474a-fe114412ab72" Version="2.0" IssueInstant="2017-09-06T11:49:27Z">
+            <saml:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity">https://example.org/</saml:Issuer>
+            <saml:Subject>
+              <saml:NameID Format="urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified">urn:example:subject</saml:NameID>
+            </saml:Subject>
+            <saml:Attribute Name="urn:oid:1.3.6.1.4.1.5923.1.1.1.7" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" FriendlyName="entitlements"/>
+            <saml:Attribute Name="urn:oid:2.5.4.4" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" FriendlyName="sn"/>
+            <saml:Attribute Name="urn:oid:2.16.840.1.113730.3.1.39" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri" FriendlyName="preferredLanguage"/>
+          </samlp:AttributeQuery>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>
+SOAP);
+
 
         $mdh = $this->createMock(MetaDataStorageHandler::class);
         $mdh->method('getMetaDataCurrentEntityID')->willReturn('https://example.org/');
@@ -67,9 +85,23 @@ class ExampleAttributeServerTest extends TestCase
 
         $c = new AttributeServer(self::$config);
         $c->setMetadataStorageHandler($mdh);
-        $response = $c->main($request);
+
+        $request = new ServerRequest('', '');
+        $response = $c->main($soap, $request);
 
         $this->assertInstanceOf(RunnableResponse::class, $response);
         $this->assertTrue($response->isSuccessful());
+    }
+
+    /**
+     * @return \SimpleSAML\SAML2\Binding\SOAP
+     */
+    private function getStubWithInput($input): SOAP
+    {
+        $stub = $this->getMockBuilder(SOAP::class)->onlyMethods(['getInputStream'])->getMock();
+        $stub->expects($this->once())
+             ->method('getInputStream')
+             ->willReturn($input);
+        return $stub;
     }
 }

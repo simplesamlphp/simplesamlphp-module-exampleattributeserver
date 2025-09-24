@@ -6,6 +6,8 @@ namespace SimpleSAML\Module\exampleattributeserver\Controller;
 
 use DateInterval;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7\ServerRequest;
+use SimpleSAML\Message;
 use SimpleSAML\{Configuration, Error, Logger};
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
@@ -82,22 +84,9 @@ class AttributeServer
      * @return \SimpleSAML\HTTP\RunnableResponse
      * @throws \SimpleSAML\Error\BadRequest
      */
-    public function main(/** @scrutinizer ignore-unused */ Request $request): RunnableResponse
+    public function main(/** @scrutinizer ignore-unused */ SOAP $soap, ServerRequest $request): RunnableResponse
     {
-        $psr17Factory = new Psr17Factory();
-        $psrHttpFactory = new PsrHttpFactory($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
-        $psrRequest = $psrHttpFactory->createRequest($request);
-
-        $binding = Binding::getCurrentBinding($psrRequest);
-        if (!($binding instanceof SynchronousBindingInterface)) {
-            throw new Error\BadRequest('Invalid binding; MUST use a synchronous binding.');
-        }
-
-        $message = $binding->receive($psrRequest);
-        if (!($message instanceof AttributeQuery)) {
-            throw new Error\BadRequest('Invalid message received to AttributeQuery endpoint.');
-        }
-
+        $message = $soap->receive($request);
         $idpEntityId = $this->metadataHandler->getMetaDataCurrentEntityID('saml20-idp-hosted');
 
         $issuer = $message->getIssuer();

@@ -46,6 +46,7 @@
     },
     "require-dev": {
         "beste/clock": "~3.0.0",
+        "mockery/mockery": "~1.6.12",
         "simplesamlphp/simplesamlphp-test-framework": "~1.9.3"
     },
     "support": {
