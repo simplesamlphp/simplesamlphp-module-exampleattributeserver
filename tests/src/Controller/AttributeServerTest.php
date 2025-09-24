@@ -8,10 +8,10 @@ use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Nyholm\Psr7\ServerRequest;
 use PHPUnit\Framework\Attributes\CoversClass;
 use SimpleSAML\Configuration;
-use SimpleSAML\SAML2\Binding\SOAP;
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
 use SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer;
+use SimpleSAML\SAML2\Binding\SOAP;
 use SimpleSAML\XMLSecurity\TestUtils\PEMCertificatesMock;
 
 /**
