@@ -5,13 +5,10 @@ declare(strict_types=1);
 namespace SimpleSAML\Module\exampleattributeserver\Controller;
 
 use DateInterval;
-use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\ServerRequest;
-use SimpleSAML\Message;
 use SimpleSAML\{Configuration, Error, Logger};
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
-use SimpleSAML\SAML2\Binding;
 use SimpleSAML\SAML2\Binding\{SynchronousBindingInterface, SOAP};
 use SimpleSAML\SAML2\Constants as C;
 use SimpleSAML\SAML2\Utils as SAML2_Utils;
@@ -36,7 +33,6 @@ use SimpleSAML\XMLSecurity\Key\PrivateKey;
 use SimpleSAML\XMLSecurity\XML\ds\{KeyInfo, X509Certificate, X509Data};
 use SimpleSAML\XMLSecurity\XML\SignableElementInterface;
 use Symfony\Bridge\PsrHttpMessage\Factory\{HttpFoundationFactory, PsrHttpFactory};
-use Symfony\Component\HttpFoundation\Request;
 
 use function array_filter;
 
@@ -79,7 +75,7 @@ class AttributeServer
 
 
     /**
-     * @param \Symfony\Component\HttpFoundation\Request $request The current request.
+     * @param \Nyholm\Psr7\ServerRequest $request The current request.
      *
      * @return \SimpleSAML\HTTP\RunnableResponse
      * @throws \SimpleSAML\Error\BadRequest
