@@ -37,6 +37,7 @@
         "php": "^8.1",
 
         "nyholm/psr7": "~1.8.2",
+        "simplesamlphp/assert": "~1.9.0",
         "simplesamlphp/saml2": "~5.0.3",
         "simplesamlphp/simplesamlphp": "~2.4.0",
         "simplesamlphp/xml-common": "~1.25.0",
