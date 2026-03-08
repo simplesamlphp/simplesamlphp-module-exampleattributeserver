@@ -36,9 +36,9 @@ use SimpleSAML\SAML2\XML\samlp\Response;
 use SimpleSAML\SAML2\XML\samlp\Status;
 use SimpleSAML\SAML2\XML\samlp\StatusCode;
 use SimpleSAML\Utils;
-use SimpleSAML\XML\Exception\InvalidDOMElementException;
-use SimpleSAML\XML\Type\IDValue;
 use SimpleSAML\XML\Utils\Random;
+use SimpleSAML\XMLSchema\Exception\InvalidDOMElementException;
+use SimpleSAML\XMLSchema\Type\IDValue;
 use SimpleSAML\XMLSecurity\Alg\Signature\SignatureAlgorithmFactory;
 use SimpleSAML\XMLSecurity\Key\PrivateKey;
 use SimpleSAML\XMLSecurity\XML\ds\KeyInfo;
@@ -97,7 +97,7 @@ class AttributeServer
     public function main(/** @scrutinizer ignore-unused */ SOAP $soap, ServerRequest $request): RunnableResponse
     {
         $message = $soap->receive($request);
-        Assert::isInstanceOf($message, AttributeQuery::class, InvalidDOMElement::class);
+        Assert::isInstanceOf($message, AttributeQuery::class, InvalidDOMElementException::class);
 
         $idpEntityId = $this->metadataHandler->getMetaDataCurrentEntityID('saml20-idp-hosted');
 
