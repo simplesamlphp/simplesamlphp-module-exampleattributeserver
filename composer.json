@@ -42,8 +42,7 @@
         "simplesamlphp/simplesamlphp": "~2.5@dev",
         "simplesamlphp/xml-common": "~2.7",
         "simplesamlphp/xml-security": "~2.3",
-        "symfony/http-foundation": "~7.4",
-        "symfony/psr-http-message-bridge": "~7.4"
+        "symfony/http-foundation": "~7.4"
     },
     "require-dev": {
         "beste/clock": "~3.0",

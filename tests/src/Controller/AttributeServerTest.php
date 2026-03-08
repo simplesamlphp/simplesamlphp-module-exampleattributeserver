@@ -89,6 +89,7 @@ SOAP);
         $this->assertTrue($response->isSuccessful());
     }
 
+
     /**
      * @return \SimpleSAML\SAML2\Binding\SOAP
      */

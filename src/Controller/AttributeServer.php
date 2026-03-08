@@ -9,10 +9,9 @@ use Nyholm\Psr7\ServerRequest;
 use SimpleSAML\Assert\Assert;
 use SimpleSAML\Configuration;
 use SimpleSAML\Error;
-use SimpleSAML\Logger;
 use SimpleSAML\HTTP\RunnableResponse;
+use SimpleSAML\Logger;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
-use SimpleSAML\SAML2\Binding\SynchronousBindingInterface;
 use SimpleSAML\SAML2\Binding\SOAP;
 use SimpleSAML\SAML2\Constants as C;
 use SimpleSAML\SAML2\Type\EntityIDValue;
@@ -45,8 +44,6 @@ use SimpleSAML\XMLSecurity\XML\ds\KeyInfo;
 use SimpleSAML\XMLSecurity\XML\ds\X509Certificate;
 use SimpleSAML\XMLSecurity\XML\ds\X509Data;
 use SimpleSAML\XMLSecurity\XML\SignableElementInterface;
-use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
-use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
 
 use function array_filter;
 
