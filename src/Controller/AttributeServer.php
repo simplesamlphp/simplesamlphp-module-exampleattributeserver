@@ -7,34 +7,46 @@ namespace SimpleSAML\Module\exampleattributeserver\Controller;
 use DateInterval;
 use Nyholm\Psr7\ServerRequest;
 use SimpleSAML\Assert\Assert;
-use SimpleSAML\{Configuration, Error, Logger};
+use SimpleSAML\Configuration;
+use SimpleSAML\Error;
+use SimpleSAML\Logger;
 use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
-use SimpleSAML\SAML2\Binding\{SynchronousBindingInterface, SOAP};
+use SimpleSAML\SAML2\Binding\SynchronousBindingInterface;
+use SimpleSAML\SAML2\Binding\SOAP;
 use SimpleSAML\SAML2\Constants as C;
+use SimpleSAML\SAML2\Type\EntityIDValue;
+use SimpleSAML\SAML2\Type\SAMLAnyURIValue;
+use SimpleSAML\SAML2\Type\SAMLDateTimeValue;
+use SimpleSAML\SAML2\Type\SAMLStringValue;
 use SimpleSAML\SAML2\Utils as SAML2_Utils;
-use SimpleSAML\SAML2\XML\saml\{
-    Assertion,
-    Attribute,
-    AttributeStatement,
-    AttributeValue,
-    Audience,
-    AudienceRestriction,
-    Conditions,
-    Issuer,
-    Subject,
-    SubjectConfirmation,
-    SubjectConfirmationData,
-};
-use SimpleSAML\SAML2\XML\samlp\{AttributeQuery, Response, Status, StatusCode};
+use SimpleSAML\SAML2\XML\saml\Assertion;
+use SimpleSAML\SAML2\XML\saml\Attribute;
+use SimpleSAML\SAML2\XML\saml\AttributeStatement;
+use SimpleSAML\SAML2\XML\saml\AttributeValue;
+use SimpleSAML\SAML2\XML\saml\Audience;
+use SimpleSAML\SAML2\XML\saml\AudienceRestriction;
+use SimpleSAML\SAML2\XML\saml\Conditions;
+use SimpleSAML\SAML2\XML\saml\Issuer;
+use SimpleSAML\SAML2\XML\saml\Subject;
+use SimpleSAML\SAML2\XML\saml\SubjectConfirmation;
+use SimpleSAML\SAML2\XML\saml\SubjectConfirmationData;
+use SimpleSAML\SAML2\XML\samlp\AttributeQuery;
+use SimpleSAML\SAML2\XML\samlp\Response;
+use SimpleSAML\SAML2\XML\samlp\Status;
+use SimpleSAML\SAML2\XML\samlp\StatusCode;
 use SimpleSAML\Utils;
 use SimpleSAML\XML\Exception\InvalidDOMElementException;
+use SimpleSAML\XML\Type\IDValue;
 use SimpleSAML\XML\Utils\Random;
 use SimpleSAML\XMLSecurity\Alg\Signature\SignatureAlgorithmFactory;
 use SimpleSAML\XMLSecurity\Key\PrivateKey;
-use SimpleSAML\XMLSecurity\XML\ds\{KeyInfo, X509Certificate, X509Data};
+use SimpleSAML\XMLSecurity\XML\ds\KeyInfo;
+use SimpleSAML\XMLSecurity\XML\ds\X509Certificate;
+use SimpleSAML\XMLSecurity\XML\ds\X509Data;
 use SimpleSAML\XMLSecurity\XML\SignableElementInterface;
-use Symfony\Bridge\PsrHttpMessage\Factory\{HttpFoundationFactory, PsrHttpFactory};
+use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
+use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
 
 use function array_filter;
 
@@ -94,13 +106,13 @@ class AttributeServer
             throw new Error\BadRequest('Missing <saml:Issuer> in <samlp:AttributeQuery>.');
         } else {
             $spEntityId = $issuer->getContent();
-            if ($spEntityId === '') {
+            if ($spEntityId === null) {
                 throw new Error\BadRequest('Empty <saml:Issuer> in <samlp:AttributeQuery>.');
             }
         }
 
         $idpMetadata = $this->metadataHandler->getMetaDataConfig($idpEntityId, 'saml20-idp-hosted');
-        $spMetadata = $this->metadataHandler->getMetaDataConfig($spEntityId, 'saml20-sp-remote');
+        $spMetadata = $this->metadataHandler->getMetaDataConfig($spEntityId->getValue(), 'saml20-sp-remote');
 
         // The endpoint we should deliver the message to
         $endpoint = $spMetadata->getString('testAttributeEndpoint');
@@ -108,21 +120,21 @@ class AttributeServer
         // The attributes we will return
         $attributes = [
             new Attribute(
-                'name',
-                C::NAMEFORMAT_UNSPECIFIED,
+                SAMLStringValue::fromString('name'),
+                SAMLAnyURIValue::fromString(C::NAMEFORMAT_UNSPECIFIED),
                 null,
                 [
-                    new AttributeValue('value1'),
-                    new AttributeValue('value2'),
-                    new AttributeValue('value3'),
+                    new AttributeValue(SAMLStringValue::fromString('value1')),
+                    new AttributeValue(SAMLStringValue::fromString('value2')),
+                    new AttributeValue(SAMLStringValue::fromString('value3')),
                 ],
             ),
             new Attribute(
-                'test',
-                C::NAMEFORMAT_UNSPECIFIED,
+                SAMLStringValue::fromString('test'),
+                SAMLAnyURIValue::fromString(C::NAMEFORMAT_UNSPECIFIED),
                 null,
                 [
-                    new AttributeValue('test'),
+                    new AttributeValue(SAMLStringValue::fromString('test')),
                 ],
             ),
         ];
@@ -170,28 +182,32 @@ class AttributeServer
 
         $statements = array_filter([$attributeStatement]);
         $assertion = new Assertion(
-            issuer: new Issuer($idpEntityId),
-            issueInstant: $clock->now(),
-            id: (new Random())->generateID(),
+            issuer: Issuer::fromString($idpEntityId),
+            issueInstant: SAMLDateTimeValue::fromDateTime($clock->now()),
+            id: IDValue::fromString((new Random())->generateID()),
             subject: new Subject(
                 identifier: $message->getSubject()->getIdentifier(),
                 subjectConfirmation: [
                     new SubjectConfirmation(
-                        method: C::CM_BEARER,
+                        method: SAMLAnyURIValue::fromString(C::CM_BEARER),
                         subjectConfirmationData: new SubjectConfirmationData(
-                            notOnOrAfter: $clock->now()->add(new DateInterval('PT300S')),
-                            recipient: $endpoint,
+                            notOnOrAfter: SAMLDateTimeValue::fromDateTime(
+                                $clock->now()->add(new DateInterval('PT300S')),
+                            ),
+                            recipient: EntityIDValue::fromString($endpoint),
                             inResponseTo: $message->getId(),
                         ),
                     ),
                 ],
             ),
             conditions: new Conditions(
-                notBefore: $clock->now(),
-                notOnOrAfter: $clock->now()->add(new DateInterval('PT300S')),
+                notBefore: SAMLDateTimeValue::fromDateTime($clock->now()),
+                notOnOrAfter: SAMLDateTimeValue::fromDateTime(
+                    $clock->now()->add(new DateInterval('PT300S')),
+                ),
                 audienceRestriction: [
                     new AudienceRestriction([
-                        new Audience($spEntityId),
+                        Audience::fromString($spEntityId->getValue()),
                     ]),
                 ],
             ),
@@ -202,14 +218,13 @@ class AttributeServer
 
         $response = new Response(
             status: new Status(
-                new StatusCode(C::STATUS_SUCCESS),
+                new StatusCode(SAMLAnyURIValue::fromString(C::STATUS_SUCCESS)),
             ),
-            issueInstant: $clock->now(),
+            issueInstant: SAMLDateTimeValue::fromDateTime($clock->now()),
             issuer: $issuer,
-            id: (new Random())->generateID(),
-            version: '2.0',
+            id: IDValue::fromString((new Random())->generateID()),
             inResponseTo: $message->getId(),
-            destination: $endpoint,
+            destination: SAMLAnyURIValue::fromString($endpoint),
             assertions: [$assertion],
         );
 
