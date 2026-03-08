@@ -34,21 +34,21 @@
         }
     },
     "require": {
-        "php": "^8.1",
+        "php": "^8.3",
 
         "nyholm/psr7": "~1.8.2",
-        "simplesamlphp/assert": "~1.9.0",
-        "simplesamlphp/saml2": "~5.0.3",
-        "simplesamlphp/simplesamlphp": "~2.4.0",
-        "simplesamlphp/xml-common": "~1.25.0",
-        "simplesamlphp/xml-security": "~1.13.0",
-        "symfony/http-foundation": "~6.4.0",
-        "symfony/psr-http-message-bridge": "~6.4.0"
+        "simplesamlphp/assert": "~2.0",
+        "simplesamlphp/saml2": "~6.1",
+        "simplesamlphp/simplesamlphp": "~2.5@dev",
+        "simplesamlphp/xml-common": "~2.7",
+        "simplesamlphp/xml-security": "~2.3",
+        "symfony/http-foundation": "~7.4",
+        "symfony/psr-http-message-bridge": "~7.4"
     },
     "require-dev": {
-        "beste/clock": "~3.0.0",
-        "mockery/mockery": "~1.6.12",
-        "simplesamlphp/simplesamlphp-test-framework": "~1.9.3"
+        "beste/clock": "~3.0",
+        "mockery/mockery": "~1.6",
+        "simplesamlphp/simplesamlphp-test-framework": "~1.11"
     },
     "support": {
         "issues": "https://github.com/simplesamlphp/simplesamlphp-module-exampleattributeserver/issues",
