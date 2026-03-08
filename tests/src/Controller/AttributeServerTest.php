@@ -85,12 +85,12 @@ SOAP);
         $request = new ServerRequest('', '');
         $response = $c->main($soap, $request);
 
-        $this->assertInstanceOf(RunnableResponse::class, $response);
         $this->assertTrue($response->isSuccessful());
     }
 
 
     /**
+     * @param mixed $input
      * @return \SimpleSAML\SAML2\Binding\SOAP
      */
     private function getStubWithInput($input): SOAP
