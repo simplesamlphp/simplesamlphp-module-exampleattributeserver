@@ -8,7 +8,6 @@ use Mockery\Adapter\Phpunit\MockeryTestCase;
 use Nyholm\Psr7\ServerRequest;
 use PHPUnit\Framework\Attributes\CoversClass;
 use SimpleSAML\Configuration;
-use SimpleSAML\HTTP\RunnableResponse;
 use SimpleSAML\Metadata\MetaDataStorageHandler;
 use SimpleSAML\Module\exampleattributeserver\Controller\AttributeServer;
 use SimpleSAML\SAML2\Binding\SOAP;
@@ -85,12 +84,12 @@ SOAP);
         $request = new ServerRequest('', '');
         $response = $c->main($soap, $request);
 
-        $this->assertInstanceOf(RunnableResponse::class, $response);
         $this->assertTrue($response->isSuccessful());
     }
 
 
     /**
+     * @param mixed $input
      * @return \SimpleSAML\SAML2\Binding\SOAP
      */
     private function getStubWithInput($input): SOAP

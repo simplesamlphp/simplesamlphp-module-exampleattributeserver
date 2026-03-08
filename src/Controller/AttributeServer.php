@@ -93,6 +93,7 @@ class AttributeServer
      */
     public function main(/** @scrutinizer ignore-unused */ SOAP $soap, ServerRequest $request): RunnableResponse
     {
+        /** @var \SimpleSAML\SAML2\XML\samlp\AttributeQuery $message */
         $message = $soap->receive($request);
         Assert::isInstanceOf($message, AttributeQuery::class, InvalidDOMElementException::class);
 
@@ -103,9 +104,6 @@ class AttributeServer
             throw new Error\BadRequest('Missing <saml:Issuer> in <samlp:AttributeQuery>.');
         } else {
             $spEntityId = $issuer->getContent();
-            if ($spEntityId === null) {
-                throw new Error\BadRequest('Empty <saml:Issuer> in <samlp:AttributeQuery>.');
-            }
         }
 
         $idpMetadata = $this->metadataHandler->getMetaDataConfig($idpEntityId, 'saml20-idp-hosted');
