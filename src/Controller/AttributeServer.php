@@ -211,6 +211,7 @@ class AttributeServer
 
         self::addSign($idpMetadata, $spMetadata, $assertion);
 
+        /** @var \SimpleSAML\SAML2\XML\saml\Assertion $assertion */
         $response = new Response(
             status: new Status(
                 new StatusCode(SAMLAnyURIValue::fromString(C::STATUS_SUCCESS)),

@@ -1,7 +1,0 @@
-parameters:
-	ignoreErrors:
-		-
-			message: '#^Parameter \$assertions of class SimpleSAML\\SAML2\\XML\\samlp\\Response constructor expects array\<SimpleSAML\\SAML2\\XML\\saml\\Assertion\|SimpleSAML\\SAML2\\XML\\saml\\EncryptedAssertion\>, array\<int, SimpleSAML\\XMLSecurity\\XML\\SignableElementInterface\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Controller/AttributeServer.php
