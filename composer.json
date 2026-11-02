@@ -47,7 +47,7 @@
     "require-dev": {
         "beste/clock": "~4.0",
         "mockery/mockery": "~1.6",
-        "simplesamlphp/simplesamlphp-test-framework": "~1.11"
+        "simplesamlphp/simplesamlphp-test-framework": "~2.0"
     },
     "support": {
         "issues": "https://github.com/simplesamlphp/simplesamlphp-module-exampleattributeserver/issues",
